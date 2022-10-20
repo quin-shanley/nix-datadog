@@ -109,7 +109,7 @@ let
 
         # Install the config files and python modules from the "dist" dir into standard paths.
         postInstall = ''
-          mkdir -p $out/${pythonWithIntegrations.sitePackages} $out/share/datadog-agent
+          mkdir -p $out/${pythonWithIntegrations.sitePackages} $out/share/datadog-agent $out/share/datadog-agent/conf.d
           cp -R $src/cmd/agent/dist/{checks,utils,config.py} $out/${pythonWithIntegrations.sitePackages}
           cp -R $src/pkg/status/templates $out/share/datadog-agent
         '';
