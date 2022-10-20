@@ -3,13 +3,19 @@
 with lib;
 
 let
-  cfg = config.services.datadog-agent;
+  cfg = config.services.datadog;
 
   ddConf = {
     skip_ssl_validation = false;
+    run_path = "/var/run/datadog-agent";
+    compliance_config.run_path = "/var/run/datadog-agent";
+    logs_config.run_path = "/var/run/datadog-agent";
     confd_path = "/etc/datadog-agent/conf.d";
     additional_checksd = "/etc/datadog-agent/checks.d";
     use_dogstatsd = true;
+    log_format_json = true;
+    log_level = "warn";
+    disable_file_logging = true;
   }
   // optionalAttrs (cfg.logLevel != null) { log_level = cfg.logLevel; }
   // optionalAttrs (cfg.hostname != null) { inherit (cfg) hostname; }
@@ -50,7 +56,7 @@ let
   datadogPkg = cfg.package;
 in
 {
-  options.services.datadog-agent = {
+  options.services.datadog = {
     enable = mkOption {
       description = lib.mdDoc ''
         Whether to enable the datadog-agent v7 monitoring service
@@ -60,8 +66,8 @@ in
     };
 
     package = mkOption {
-      default = pkgs.datadog-agent;
-      defaultText = literalExpression "pkgs.datadog-agent";
+      default = pkgs.datadog;
+      defaultText = literalExpression "pkgs.datadog";
       description = lib.mdDoc ''
         Which DataDog v7 agent package to use. Note that the provided
         package is expected to have an overridable `pythonPackages`-attribute
@@ -190,7 +196,12 @@ in
       type = types.attrs;
       default = {
         init_config = { };
-        instances = [{ use_mount = "false"; }];
+        instances = [{
+          use_mount = "false";
+          all_partitions = false;
+          excluded_filesystems = [ "tmpfs" "nsfs" "overlay" "overlay2" ];
+          excluded_mountpoint_re = "^(/var/lib/docker|/run/docker/netns)/";
+        }];
       };
     };
 
@@ -207,15 +218,16 @@ in
       };
     };
   };
-  config = mkIf cfg.enable {
+  config = {
+    nixpkgs.overlays = [ (import ./overlay.nix) ];
+  } // mkIf cfg.enable {
     environment.systemPackages = [ datadogPkg pkgs.sysstat pkgs.procps pkgs.iproute2 ];
 
     users.users.datadog = {
       description = "Datadog Agent User";
       uid = config.ids.uids.datadog;
       group = "datadog";
-      home = "/var/log/datadog/";
-      createHome = true;
+      extraGroups = lib.optionals config.virtualisation.docker.enable [ "docker" ];
     };
 
     users.groups.datadog.gid = config.ids.gids.datadog;
@@ -240,14 +252,16 @@ in
         datadog-agent = makeService {
           description = "Datadog agent monitor";
           preStart = ''
-            chown -R datadog: /etc/datadog-agent
+            chown -R datadog: /etc/datadog-agent /var/run/datadog-agent
             rm -f /etc/datadog-agent/auth_token
           '';
           script = ''
             export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            exec ${datadogPkg.packages.agent}/bin/agent run -c /etc/datadog-agent/datadog.yaml
+            exec ${datadogPkg.packages.agent}/bin/datadog-agent run --cfgpath /etc/datadog-agent
           '';
+          serviceConfig.SyslogIdentifier = "datadog-agent";
           serviceConfig.PermissionsStartOnly = true;
+          serviceConfig.RuntimeDirectory = "datadog-agent";
         };
 
         dd-jmxfetch = lib.mkIf (lib.hasAttr "jmx" cfg.checks) (makeService {
@@ -261,8 +275,10 @@ in
           path = [ ];
           script = ''
             export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            ${datadogPkg.packages.process-agent}/bin/process-agent --config /etc/datadog-agent/datadog.yaml
+            ${datadogPkg.packages.process-agent}/bin/process-agent --cfgpath /etc/datadog-agent
           '';
+          serviceConfig.SyslogIdentifier = "datadog-process-agent";
+          serviceConfig.RuntimeDirectory = "datadog-agent";
         });
 
         datadog-trace-agent = lib.mkIf cfg.enableTraceAgent (makeService {
@@ -270,8 +286,10 @@ in
           path = [ ];
           script = ''
             export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            ${datadogPkg.packages.trace-agent}/bin/trace-agent -config /etc/datadog-agent/datadog.yaml
+            ${datadogPkg.packages.trace-agent}/bin/trace-agent --cfgpath /etc/datadog-agent
           '';
+          serviceConfig.SyslogIdentifier = "datadog-trace-agent";
+          serviceConfig.RuntimeDirectory = "datadog-agent";
         });
       };
 

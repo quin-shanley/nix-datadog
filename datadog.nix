@@ -40,14 +40,14 @@ let
         inherit python;
       };
       allPackages = callPackage ./packages.nix {
-        inherit datadogPackage withSystemd;
+        inherit datadogPackage rtloader withSystemd;
         python = pythonWithIntegrations;
       };
 
       thisAttrs = { extraTags = [ ]; } // prevAttrs // attrs;
 
       thisIntegrationsFns = prevIntegrationsFns ++ [ integrations ];
-      thisIntegrations = builtins.foldl'
+      thisIntegrations = [ allIntegrations.checks-base ] ++ builtins.foldl'
         (enabled: f: f {
           inherit enabled;
           all = allIntegrations;
@@ -110,7 +110,6 @@ let
         # Install the config files and python modules from the "dist" dir into standard paths.
         postInstall = ''
           mkdir -p $out/${pythonWithIntegrations.sitePackages} $out/share/datadog-agent
-          cp -R $src/cmd/agent/dist/conf.d $out/share/datadog-agent
           cp -R $src/cmd/agent/dist/{checks,utils,config.py} $out/${pythonWithIntegrations.sitePackages}
           cp -R $src/pkg/status/templates $out/share/datadog-agent
         '';
@@ -128,7 +127,7 @@ let
     in
     symlinkJoin {
       name = "datadog";
-      paths = thisPackages ++ thisIntegrations;
+      paths = thisPackages ++ thisIntegrations ++ [ rtloader ];
 
       passthru = {
         packages = allPackages;
