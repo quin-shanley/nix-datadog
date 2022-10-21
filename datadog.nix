@@ -27,6 +27,8 @@ let
     rev = version;
   };
 
+  ddtrace = callPackage ./ddtrace.nix { inherit python; };
+
   mkBuildEnv =
     prevAttrs:
     prevPackagesFns:
@@ -37,7 +39,7 @@ let
     }@attrs:
     let
       allIntegrations = callPackage ./integrations.nix {
-        inherit python;
+        inherit ddtrace python;
       };
       allPackages = callPackage ./packages.nix {
         inherit datadogPackage rtloader withSystemd;
@@ -47,7 +49,7 @@ let
       thisAttrs = { extraTags = [ ]; } // prevAttrs // attrs;
 
       thisIntegrationsFns = prevIntegrationsFns ++ [ integrations ];
-      thisIntegrations = [ allIntegrations.checks-base ] ++ builtins.foldl'
+      thisIntegrations = builtins.foldl'
         (enabled: f: f {
           inherit enabled;
           all = allIntegrations;
@@ -64,7 +66,7 @@ let
 
       buildEnv = mkBuildEnv thisAttrs thisPackagesFns thisIntegrationsFns;
 
-      pythonWithIntegrations = python.withPackages (_: thisIntegrations);
+      pythonWithIntegrations = python.withPackages (_: thisIntegrations ++ [ allIntegrations.checks-base ]);
       rtloader = callPackage ./rtloader.nix {
         inherit src version;
         python = pythonWithIntegrations;

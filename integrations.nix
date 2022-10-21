@@ -1,7 +1,7 @@
 { lib
-, callPackage
 , fetchFromGitHub
 , python
+, ddtrace
 }:
 
 let
@@ -31,12 +31,15 @@ let
 
   # The base library for Datadog checks.
   checks-base = buildIntegration "checks_base" {
-    format = "setuptools";
     src = integrations-core;
     sourceRoot = "source/datadog_checks_base";
+    patches = [
+      ./ddtrace.patch
+    ];
     propagatedBuildInputs = with python.pkgs; [
       cachetools
       cryptography
+      ddtrace
       hatchling
       immutables
       jellyfish

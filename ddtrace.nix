@@ -1,0 +1,25 @@
+{ fetchFromGitHub
+, python
+}:
+
+python.pkgs.buildPythonPackage rec {
+  name = "ddtrace";
+  version = "0.53.2";
+  format = "pyproject";
+  src = fetchFromGitHub {
+    owner = "DataDog";
+    repo = "dd-trace-py";
+    rev = version;
+    sha256 = "sha256-3R381tC6gvBKkoyn+qR7vdCreK9V8Qvs4CLOhPOoFsE=";
+  };
+  propagatedBuildInputs = with python.pkgs; [
+    attrs
+    cython
+    packaging
+    protobuf
+    setuptools
+    six
+    tenacity
+  ];
+  doCheck = true;
+}
