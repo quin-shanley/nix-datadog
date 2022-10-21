@@ -9,7 +9,7 @@ python.pkgs.buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "DataDog";
     repo = "dd-trace-py";
-    rev = version;
+    rev = "v${version}";
     sha256 = "sha256-3R381tC6gvBKkoyn+qR7vdCreK9V8Qvs4CLOhPOoFsE=";
   };
   propagatedBuildInputs = with python.pkgs; [
