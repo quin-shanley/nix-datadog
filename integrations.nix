@@ -21,6 +21,20 @@ let
     sha256 = "sha256-doz5UfZtfbM2R2uatWWx7Va4R/iOOWA1yMRSfq/CEns=";
   };
 
+  binary = python.pkgs.buildPythonPackage {
+    name = "binary";
+    format = "pyproject";
+    src = fetchFromGitHub {
+      owner = "ofek";
+      repo = "binary";
+      rev = "d67bd4dedde9f9ef2198db89859154e449e2fcfb";
+      sha256 = "sha256-6Zj6C1Pi3DPjpT0f+MTS157u62PgVVBcPMsd3cL36Gk=";
+    };
+    propagatedBuildInputs = with python.pkgs; [
+      setuptools
+    ];
+  };
+
   # Builder for Datadog integrations.
   buildIntegration = name: { format ? "pyproject", src, sourceRoot ? "source/${name}", ... }@attrs:
     python.pkgs.buildPythonPackage (attrs // {
