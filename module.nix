@@ -257,7 +257,7 @@ in
           '';
           script = ''
             export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            exec ${datadogPkg.packages.agent}/bin/datadog-agent run --cfgpath /etc/datadog-agent
+            exec ${datadogPkg}/bin/datadog-agent run --cfgpath /etc/datadog-agent
           '';
           serviceConfig.SyslogIdentifier = "datadog-agent";
           serviceConfig.PermissionsStartOnly = true;
@@ -275,7 +275,7 @@ in
           path = [ ];
           script = ''
             export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            ${datadogPkg.packages.process-agent}/bin/process-agent --cfgpath /etc/datadog-agent
+            ${datadogPkg}/bin/process-agent --cfgpath /etc/datadog-agent
           '';
           serviceConfig.SyslogIdentifier = "datadog-process-agent";
           serviceConfig.RuntimeDirectory = "datadog-agent";
@@ -286,7 +286,7 @@ in
           path = [ ];
           script = ''
             export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            ${datadogPkg.packages.trace-agent}/bin/trace-agent --cfgpath /etc/datadog-agent
+            ${datadogPkg}/bin/trace-agent --cfgpath /etc/datadog-agent
           '';
           serviceConfig.SyslogIdentifier = "datadog-trace-agent";
           serviceConfig.RuntimeDirectory = "datadog-agent";

@@ -17,11 +17,6 @@
     ];
     postInstall = postInstall + ''
       mv "$out/bin/agent" "$out/bin/datadog-agent"
-
-      wrapProgram "$out/bin/datadog-agent" \
-        --prefix LD_LIBRARY_PATH  : ${rtloader}/lib \
-        --set PYTHONPATH "$out/${python.sitePackages}"'' + lib.optionalString withSystemd '' \
-        --prefix LD_LIBRARY_PATH : ${lib.getLib systemd}/lib
     '';
   });
 

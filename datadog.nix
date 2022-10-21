@@ -76,7 +76,7 @@ let
 
         doCheck = false;
 
-        nativeBuildInputs = [ pkg-config makeWrapper ];
+        nativeBuildInputs = [ pkg-config ];
         buildInputs = [ rtloader ]
           ++ lib.optionals withSystemd [ systemd ];
 
@@ -100,8 +100,8 @@ let
 
         # DataDog use paths relative to the agent binary, so fix these.
         postPatch = ''
-          sed -e "s|PyChecksPath =.*|PyChecksPath = \"$out/${pythonWithIntegrations.sitePackages}\"|" \
-              -e "s|distPath =.*|distPath = \"$out/share/datadog-agent\"|" \
+          sed -e "s|PyChecksPath =.*|PyChecksPath = filepath.Join(_here, \"..\", \"${pythonWithIntegrations.sitePackages}\")|" \
+              -e "s|distPath =.*|distPath = filepath.Join(_here, \"..\", \"share/datadog-agent\")|" \
               -i cmd/agent/common/common_nix.go
           sed -e "s|/bin/hostname|${lib.getBin hostname}/bin/hostname|" \
               -i pkg/util/hostname_nix.go
@@ -128,6 +128,17 @@ let
     symlinkJoin {
       name = "datadog";
       paths = thisPackages ++ thisIntegrations ++ [ rtloader ];
+      buildInputs = [ makeWrapper ];
+      postBuild = ''
+        for i in $out/bin/*
+        do
+          cp --remove-destination "$(readlink "$i")" "$i"
+          wrapProgram "$i" \
+            --prefix LD_LIBRARY_PATH  : ${rtloader}/lib \
+            --set PYTHONPATH "$out/${python.sitePackages}"'' + lib.optionalString withSystemd '' \
+            --prefix LD_LIBRARY_PATH : ${lib.getLib systemd}/lib
+        done
+      '';
 
       passthru = {
         packages = allPackages;
