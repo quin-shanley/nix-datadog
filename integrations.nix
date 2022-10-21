@@ -37,6 +37,7 @@ let
       ./ddtrace.patch
     ];
     propagatedBuildInputs = with python.pkgs; [
+      binary
       cachetools
       cryptography
       ddtrace
@@ -52,6 +53,7 @@ let
       requests-toolbelt
       requests-unixsocket
       simplejson
+      six
       uptime
       wrapt
     ];
