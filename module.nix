@@ -32,14 +32,9 @@ let
   makeCheckConfigs = entries: mapAttrs'
     (name: conf: {
       name = "datadog-agent/conf.d/${name}.d/conf.yaml";
-      value.source = pkgs.writeText "${name}-check-conf.yaml" (builtins.toJSON conf);
+      value.source = pkgs.writeText "${name}-check-conf.yaml" (builtins.toJSON (builtins.removeAttrs conf [ "enable" ]));
     })
     entries;
-
-  defaultChecks = {
-    disk = cfg.diskCheck;
-    network = cfg.networkCheck;
-  };
 
   # Assemble all check configurations and the top-level agent
   # configuration.
@@ -48,7 +43,7 @@ let
       "datadog-agent/datadog.yaml" = {
         source = writeText "datadog.yaml" (toJSON ddConf);
       };
-    } // makeCheckConfigs (cfg.checks // defaultChecks);
+    } // makeCheckConfigs cfg.checks;
 
   # Apply the configured extraIntegrations to the provided agent
   # package. See the documentation of `dd-agent/integrations-core.nix`
@@ -188,39 +183,45 @@ in
 
       # sic! The structure of the values is up to the check, so we can
       # not usefully constrain the type further.
-      type = with types; attrsOf attrs;
+      type = with types; attrsOf (submodule {
+        freeformType = anything;
+        options.enable = mkOption {
+          type = bool;
+          default = true;
+        };
+      });
     };
-
-    diskCheck = mkOption {
-      description = lib.mdDoc "Disk check config";
-      type = types.attrs;
-      default = {
-        init_config = { };
-        instances = [{
+  };
+  config = {
+    nixpkgs.overlays = [ (import ./overlay.nix) ];
+  } // mkIf cfg.enable {
+    services.datadog.checks = {
+      disk = {
+        instances = lib.mkDefault [{
           use_mount = "false";
           all_partitions = false;
           excluded_filesystems = [ "tmpfs" "nsfs" "overlay" "overlay2" ];
           excluded_mountpoint_re = "^(/var/lib/docker|/run/docker/netns)/";
         }];
       };
-    };
 
-    networkCheck = mkOption {
-      description = lib.mdDoc "Network check config";
-      type = types.attrs;
-      default = {
-        init_config = { };
-        # Network check only supports one configured instance
-        instances = [{
+      network = {
+        instances = lib.mkDefault [{
           collect_connection_state = false;
           excluded_interfaces = [ "lo" "lo0" ];
         }];
       };
+
+      cpu.instances = lib.mkDefault [{}];
+      io.instances = lib.mkDefault [{}];
+      load.instances = lib.mkDefault [{}];
+      memory.instances = lib.mkDefault [{}];
+      ntp.instances = lib.mkDefault [{}];
+      oom_kill.instances = lib.mkDefault [{}];
+      tcp_queue_length.instances = lib.mkDefault [{}];
+      uptime.instances = lib.mkDefault [{}];
     };
-  };
-  config = {
-    nixpkgs.overlays = [ (import ./overlay.nix) ];
-  } // mkIf cfg.enable {
+
     environment.systemPackages = [ datadogPkg pkgs.sysstat pkgs.procps pkgs.iproute2 ];
 
     users.users.datadog = {
