@@ -217,8 +217,6 @@ in
       load.instances = lib.mkDefault [{}];
       memory.instances = lib.mkDefault [{}];
       ntp.instances = lib.mkDefault [{}];
-      oom_kill.instances = lib.mkDefault [{}];
-      tcp_queue_length.instances = lib.mkDefault [{}];
       uptime.instances = lib.mkDefault [{}];
     };
 
