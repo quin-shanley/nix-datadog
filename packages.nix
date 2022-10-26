@@ -1,6 +1,6 @@
 { lib
 , stdenv
-, datadogPackage
+, mkDatadogPackage
 
 , python
 , systemd
@@ -72,7 +72,7 @@ let
     ++ lib.optionals stdenv.isDarwin [ "docker" "containerd" "cri" ];
 in
 {
-  agent = datadogPackage.overrideAttrs ({ postInstall ? "", ... }: {
+  agent = mkDatadogPackage ({ postInstall ? "", ... }: {
     pname = "datadog-agent";
     subPackages = [
       "cmd/agent"
@@ -83,7 +83,7 @@ in
     tags = lib.subtractLists excludedTags agentTags;
   });
 
-  dogstatsd = datadogPackage.overrideAttrs (_: {
+  dogstatsd = mkDatadogPackage (_: {
     pname = "dogstatsd";
     subPackages = [
       "cmd/dogstatsd"
@@ -91,7 +91,7 @@ in
     tags = lib.subtractLists excludedTags dogstatsdTags;
   });
 
-  cluster-agent = datadogPackage.overrideAttrs (_: {
+  cluster-agent = mkDatadogPackage (_: {
     pname = "datadog-cluster-agent";
     subPackages = [
       "cmd/cluster-agent"
@@ -99,7 +99,7 @@ in
     tags = lib.subtractLists excludedTags clusterAgentTags;
   });
 
-  iot-agent = datadogPackage.overrideAttrs (_: {
+  iot-agent = mkDatadogPackage (_: {
     pname = "datadog-iot-agent";
     subPackages = [
       "cmd/iot-agent"
@@ -107,7 +107,7 @@ in
     tags = lib.subtractLists excludedTags iotAgentTags;
   });
 
-  process-agent = datadogPackage.overrideAttrs (_: {
+  process-agent = mkDatadogPackage (_: {
     pname = "datadog-process-agent";
     subPackages = [
       "cmd/process-agent"
@@ -115,7 +115,7 @@ in
     tags = lib.subtractLists excludedTags processAgentTags;
   });
 
-  security-agent = datadogPackage.overrideAttrs (_: {
+  security-agent = mkDatadogPackage (_: {
     pname = "datadog-security-agent";
     subPackages = [
       "cmd/security-agent"
@@ -123,7 +123,7 @@ in
     tags = lib.subtractLists excludedTags securityAgentTags;
   });
 
-  trace-agent = datadogPackage.overrideAttrs (_: {
+  trace-agent = mkDatadogPackage (_: {
     pname = "datadog-trace-agent";
     subPackages = [
       "cmd/trace-agent"

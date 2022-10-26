@@ -41,7 +41,7 @@ let
         inherit ddtrace python;
       });
       allPackages = lib.filterAttrs (_: lib.isDerivation) (callPackage ./packages.nix {
-        inherit datadogPackage rtloader withSystemd;
+        inherit mkDatadogPackage rtloader withSystemd;
         python = pythonWithIntegrations;
       });
 
@@ -71,51 +71,55 @@ let
         python = pythonWithIntegrations;
       };
 
-      datadogPackage = buildGoModule rec {
-        pname = "datadog";
-        inherit src vendorSha256 version;
+      mkDatadogPackage = fn:
+        let
+          defaults = rec {
+            pname = "datadog";
+            inherit src vendorSha256 version;
 
-        doCheck = false;
+            doCheck = false;
 
-        nativeBuildInputs = [ pkg-config ];
-        buildInputs = [ rtloader ]
-          ++ lib.optionals withSystemd [ systemd ];
+            nativeBuildInputs = [ pkg-config ];
+            buildInputs = [ rtloader ]
+              ++ lib.optionals withSystemd [ systemd ];
 
-        PKG_CONFIG_PATH = "${pythonWithIntegrations}/lib/pkgconfig";
+            PKG_CONFIG_PATH = "${pythonWithIntegrations}/lib/pkgconfig";
 
-        ldflags = let path = "github.com/${owner}/${repo}"; in [
-          "-X ${path}/pkg/version.Commit=${src.rev}"
-          "-X ${path}/pkg/version.AgentVersion=${version}"
-          "-X ${path}/pkg/serializer.AgentPayloadVersion=${payloadVersion}"
-          "-X ${path}/pkg/collector/python.pythonHome3=${pythonWithIntegrations}"
-          "-X ${path}/pkg/config.DefaultPython=3"
-          "-r ${pythonWithIntegrations}/lib"
-        ];
+            ldflags = let path = "github.com/${owner}/${repo}"; in [
+              "-X ${path}/pkg/version.Commit=${src.rev}"
+              "-X ${path}/pkg/version.AgentVersion=${version}"
+              "-X ${path}/pkg/serializer.AgentPayloadVersion=${payloadVersion}"
+              "-X ${path}/pkg/collector/python.pythonHome3=${pythonWithIntegrations}"
+              "-X ${path}/pkg/config.DefaultPython=3"
+              "-r ${pythonWithIntegrations}/lib"
+            ];
 
-        preBuild = ''
-          # Keep directories to generate in sync with tasks/go.py
-          go generate ./pkg/status ./cmd/agent/gui
-        '';
+            preBuild = ''
+              # Keep directories to generate in sync with tasks/go.py
+              go generate ./pkg/status ./cmd/agent/gui
+            '';
 
-        # DataDog use paths relative to the agent binary, so fix these.
-        postPatch = ''
-          sed -e "s|PyChecksPath =.*|PyChecksPath = filepath.Join(_here, \"..\", \"${pythonWithIntegrations.sitePackages}\")|" \
-              -e "s|distPath =.*|distPath = filepath.Join(_here, \"..\", \"share/datadog-agent\")|" \
-              -i cmd/agent/common/common_nix.go
-          sed -e "s|/bin/hostname|${lib.getBin hostname}/bin/hostname|" \
-              -i pkg/util/hostname_nix.go
-        '';
+            # DataDog use paths relative to the agent binary, so fix these.
+            postPatch = ''
+              sed -e "s|PyChecksPath =.*|PyChecksPath = filepath.Join(_here, \"..\", \"${pythonWithIntegrations.sitePackages}\")|" \
+                  -e "s|distPath =.*|distPath = filepath.Join(_here, \"..\", \"share/datadog-agent\")|" \
+                  -i cmd/agent/common/common_nix.go
+              sed -e "s|/bin/hostname|${lib.getBin hostname}/bin/hostname|" \
+                  -i pkg/util/hostname_nix.go
+            '';
 
-        meta = with lib; {
-          description = ''
-            Event collector for the DataDog analysis service
-            -- v6 new golang implementation.
-          '';
-          homepage = "https://www.datadoghq.com";
-          license = licenses.bsd3;
-          maintainers = with maintainers; [ thoughtpolice domenkozar rvl viraptor ];
-        };
-      };
+            meta = with lib; {
+              description = ''
+                Event collector for the DataDog analysis service
+                -- v6 new golang implementation.
+              '';
+              homepage = "https://www.datadoghq.com";
+              license = licenses.bsd3;
+              maintainers = with maintainers; [ thoughtpolice domenkozar rvl viraptor ];
+            };
+          };
+        in
+        buildGoModule (defaults // (fn defaults));
     in
     symlinkJoin {
       name = "datadog";
