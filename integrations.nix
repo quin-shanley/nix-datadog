@@ -44,7 +44,7 @@ let
     });
 
   # The base library for Datadog checks.
-  checks-base = buildIntegration "checks_base" {
+  base = buildIntegration "checks_base" {
     src = integrations-core;
     sourceRoot = "source/datadog_checks_base";
     patches = [
@@ -76,7 +76,7 @@ let
   # Builder for core integrations.
   buildCore = name: { propagatedBuildInputs ? [], ... }@attrs: buildIntegration name (lib.mergeAttrs attrs {
     src = integrations-core;
-    propagatedBuildInputs = [ checks-base ] ++ propagatedBuildInputs;
+    propagatedBuildInputs = [ base ] ++ propagatedBuildInputs;
     meta = with lib; {
       description = "An officially supported integration for the Datadog Agent.";
       homepage    = "https://github.com/DataDog/integrations-core/tree/master/${name}";
@@ -88,7 +88,7 @@ let
   # Builder for third-party/extras integrations.
   buildExtras = name: { propagatedBuildInputs ? [], ... }@attrs: buildIntegration name (lib.mergeAttrs attrs {
     src = integrations-extras;
-    propagatedBuildInputs = [ checks-base ] ++ propagatedBuildInputs;
+    propagatedBuildInputs = [ base ] ++ propagatedBuildInputs;
     meta = with lib; {
       description = "A community written integration for the Datadog Agent.";
       homepage    = "https://github.com/DataDog/integrations-extras/tree/master/${name}";
@@ -99,7 +99,7 @@ let
 in
 
 rec {
-  inherit checks-base;
+  inherit base;
 
   # Official integrations
   active-directory = buildCore "active_directory" { };
@@ -292,7 +292,7 @@ rec {
   logstash = buildExtras "logstash" {};
   neo-4-j = buildExtras "neo4j" {};
   neutrona = buildExtras "neutrona" {};
-  nextcloud = buildExtras "nextcloud" {};
+#  nextcloud = buildExtras "nextcloud" {};
   nn-sdwan = buildExtras "nn_sdwan" { format = "setuptools"; };
   ns-1 = buildExtras "ns1" {};
   nvml = buildExtras "nvml" {};
@@ -315,7 +315,7 @@ rec {
   sendmail = buildExtras "sendmail" {};
   snmpwalk = buildExtras "snmpwalk" {};
   sortdb = buildExtras "sortdb" {};
-  speedtest = buildExtras "speedtest" {};
+#  speedtest = buildExtras "speedtest" {};
   stardog = buildExtras "stardog" {};
   storm = buildExtras "storm" {};
   syncthing = buildExtras "syncthing" {};
@@ -324,7 +324,7 @@ rec {
   trino = buildExtras "trino" {};
   unbound = buildExtras "unbound" {};
   unifi-console = buildExtras "unifi_console" {};
-  upsc = buildExtras "upsc" {};
+#  upsc = buildExtras "upsc" {};
   vespa = buildExtras "vespa" {};
   zabbix = buildExtras "zabbix" {};
 }

@@ -38,15 +38,15 @@ let
     , ...
     }@attrs:
     let
-      allIntegrations = callPackage ./integrations.nix {
+      allIntegrations = lib.filterAttrs (_: lib.isDerivation) (callPackage ./integrations.nix {
         inherit ddtrace python;
-      };
-      allPackages = callPackage ./packages.nix {
+      });
+      allPackages = lib.filterAttrs (_: lib.isDerivation) (callPackage ./packages.nix {
         inherit datadogPackage rtloader withSystemd;
         python = pythonWithIntegrations;
-      };
+      });
 
-      thisAttrs = { extraTags = [ ]; } // prevAttrs // attrs;
+      thisAttrs = prevAttrs // attrs;
 
       thisIntegrationsFns = prevIntegrationsFns ++ [ integrations ];
       thisIntegrations = builtins.foldl'
@@ -66,7 +66,7 @@ let
 
       buildEnv = mkBuildEnv thisAttrs thisPackagesFns thisIntegrationsFns;
 
-      pythonWithIntegrations = python.withPackages (_: thisIntegrations ++ [ allIntegrations.checks-base ]);
+      pythonWithIntegrations = python.withPackages (_: thisIntegrations ++ [ allIntegrations.base ]);
       rtloader = callPackage ./rtloader.nix {
         inherit src version;
         python = pythonWithIntegrations;
@@ -83,8 +83,6 @@ let
           ++ lib.optionals withSystemd [ systemd ];
 
         PKG_CONFIG_PATH = "${pythonWithIntegrations}/lib/pkgconfig";
-
-        tags = [ "ec2" "python" "process" "log" "secrets" ] ++ lib.optionals withSystemd [ "systemd" ] ++ thisAttrs.extraTags;
 
         ldflags = let path = "github.com/${owner}/${repo}"; in [
           "-X ${path}/pkg/version.Commit=${src.rev}"
@@ -148,7 +146,7 @@ let
         python = pythonWithIntegrations;
 
         inherit buildEnv;
-        withTags = tags: buildEnv { inherit tags; };
+        withPackages = packages: buildEnv { inherit packages; };
         withIntegrations = integrations: buildEnv { inherit integrations; };
       };
 
@@ -166,18 +164,8 @@ let
   buildEnv = mkBuildEnv { } [ ] [ ];
 in
 
+# The default distribution is a complete Datadog Agent build with all packages and integrations.
 buildEnv {
-  # The set of packages to include in the default Datadog environment. This should be kept somewhat minimal.
-  packages = ({ all, ... }: with all; [
-    agent
-    process-agent
-    trace-agent
-  ]);
-
-  # The set of integrations to include in the default Datadog environment. This should be kept somewhat minimal.
-  integrations = ({ all, ... }: with all; [
-    disk
-    network
-    process
-  ]);
+  integrations = ({ all, ... }: builtins.attrValues all);
+  packages = ({ all, ... }: builtins.attrValues all);
 }
