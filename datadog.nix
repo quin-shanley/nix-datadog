@@ -22,11 +22,6 @@ let
   sha256 = "sha256-bG8wsSQvZcG4/Th6mWVdVX9vpeYBZx8FxwdYXpIdXnU=";
   vendorSha256 = "sha256-bGDf48wFa32hURZfGN5pCMmslC3PeLNayKcl5cfjq9M=";
 
-  src = fetchFromGitHub {
-    inherit owner repo sha256;
-    rev = version;
-  };
-
   ddtrace = callPackage ./ddtrace.nix { inherit python; };
 
   mkBuildEnv =
@@ -35,6 +30,10 @@ let
     prevIntegrationsFns:
     { packages ? { enabled ? [ ], all, ... }: enabled
     , integrations ? { enabled ? [ ], all, ... }: enabled
+    , src ? fetchFromGitHub {
+        inherit owner repo sha256;
+        rev = version;
+      }
     , ...
     }@attrs:
     let
@@ -107,13 +106,6 @@ let
               -i pkg/util/hostname_nix.go
         '';
 
-        # Install the config files and python modules from the "dist" dir into standard paths.
-        postInstall = ''
-          mkdir -p $out/${pythonWithIntegrations.sitePackages} $out/share/datadog-agent $out/share/datadog-agent/conf.d
-          cp -R $src/cmd/agent/dist/{checks,utils,config.py} $out/${pythonWithIntegrations.sitePackages}
-          cp -R $src/pkg/status/templates $out/share/datadog-agent
-        '';
-
         meta = with lib; {
           description = ''
             Event collector for the DataDog analysis service
@@ -138,6 +130,11 @@ let
             --set PYTHONPATH "$out/${python.sitePackages}"'' + lib.optionalString withSystemd '' \
             --prefix LD_LIBRARY_PATH : ${lib.getLib systemd}/lib
         done
+
+        # Install the config files and python modules from the "dist" dir into standard paths.
+        mkdir -p $out/${pythonWithIntegrations.sitePackages} $out/share/datadog-agent $out/share/datadog-agent/conf.d
+        cp -R ${src}/cmd/agent/dist/{checks,utils,config.py} $out/${pythonWithIntegrations.sitePackages}
+        cp -R ${src}/pkg/status/templates $out/share/datadog-agent
       '';
 
       passthru = {
