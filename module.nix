@@ -192,106 +192,119 @@ in
       });
     };
   };
-  config = {
-    nixpkgs.overlays = [ (import ./overlay.nix) ];
-  } // mkIf cfg.enable {
-    services.datadog.checks = {
-      disk = {
-        instances = lib.mkDefault [{
-          use_mount = "false";
-          all_partitions = false;
-          excluded_filesystems = [ "tmpfs" "nsfs" "overlay" "overlay2" ];
-          excluded_mountpoint_re = "^(/var/lib/docker|/run/docker/netns)/";
-        }];
-      };
+  config =
+    let
+      inherit (config.virtualisation) containerd docker podman;
+    in
+    {
+      nixpkgs.overlays = [ (import ./overlay.nix) ];
+    } // mkIf cfg.enable {
+      services.datadog.checks =
+        {
+          disk = {
+            instances = lib.mkDefault [{
+              use_mount = "false";
+              all_partitions = false;
+              excluded_filesystems = [ "tmpfs" "nsfs" "overlay" "overlay2" ];
+              excluded_mountpoint_re = "^(/var/lib/docker|/run/docker/netns)/";
+            }];
+          };
 
-      network = {
-        instances = lib.mkDefault [{
-          collect_connection_state = false;
-          excluded_interfaces = [ "lo" "lo0" ];
-        }];
-      };
+          network = {
+            instances = lib.mkDefault [{
+              collect_connection_state = false;
+              excluded_interfaces = [ "lo" "lo0" ];
+            }];
+          };
 
-      cpu.instances = lib.mkDefault [{}];
-      io.instances = lib.mkDefault [{}];
-      load.instances = lib.mkDefault [{}];
-      memory.instances = lib.mkDefault [{}];
-      ntp.instances = lib.mkDefault [{}];
-      uptime.instances = lib.mkDefault [{}];
-    };
-
-    environment.systemPackages = [ datadogPkg pkgs.sysstat pkgs.procps pkgs.iproute2 ];
-
-    users.users.datadog = {
-      description = "Datadog Agent User";
-      uid = config.ids.uids.datadog;
-      group = "datadog";
-      extraGroups = lib.optionals config.virtualisation.docker.enable [ "docker" ];
-    };
-
-    users.groups.datadog.gid = config.ids.gids.datadog;
-
-    systemd.services =
-      let
-        makeService = attrs: recursiveUpdate
-          {
-            path = [ datadogPkg pkgs.python pkgs.sysstat pkgs.procps pkgs.iproute2 ];
-            wantedBy = [ "multi-user.target" ];
-            serviceConfig = {
-              User = "datadog";
-              Group = "datadog";
-              Restart = "always";
-              RestartSec = 2;
-            };
-            restartTriggers = [ datadogPkg ] ++ map (x: x.source) (attrValues etcfiles);
-          }
-          attrs;
-      in
-      {
-        datadog-agent = makeService {
-          description = "Datadog agent monitor";
-          preStart = ''
-            chown -R datadog: /etc/datadog-agent /var/run/datadog-agent
-            rm -f /etc/datadog-agent/auth_token
-          '';
-          script = ''
-            export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            exec ${datadogPkg}/bin/datadog-agent run --cfgpath /etc/datadog-agent
-          '';
-          serviceConfig.SyslogIdentifier = "datadog-agent";
-          serviceConfig.PermissionsStartOnly = true;
-          serviceConfig.RuntimeDirectory = "datadog-agent";
+          container.enable = lib.mkDefault (containerd.enable || cri-o.enable || docker.enable || podman.enable);
+          container.instances = lib.mkDefault [{ }];
+          containerd.enable = lib.mkDefault containerd.enable;
+          containerd.instances = lib.mkDefault [{ }];
+          cpu.instances = lib.mkDefault [{ }];
+          cri.enable = lib.mkDefault cri-o.enable;
+          cri.instances = lib.mkDefault [{ }];
+          docker.enable = lib.mkDefault docker.enable;
+          docker.instances = lib.mkDefault [{ }];
+          io.instances = lib.mkDefault [{ }];
+          load.instances = lib.mkDefault [{ }];
+          memory.instances = lib.mkDefault [{ }];
+          ntp.instances = lib.mkDefault [{ }];
+          uptime.instances = lib.mkDefault [{ }];
         };
 
-        dd-jmxfetch = lib.mkIf (lib.hasAttr "jmx" cfg.checks) (makeService {
-          description = "Datadog JMX Fetcher";
-          path = [ datadogPkg pkgs.python pkgs.sysstat pkgs.procps pkgs.jdk ];
-          serviceConfig.ExecStart = "${datadogPkg}/bin/dd-jmxfetch";
-        });
+      environment.systemPackages = [ datadogPkg pkgs.sysstat pkgs.procps pkgs.iproute2 ];
 
-        datadog-process-agent = lib.mkIf cfg.enableLiveProcessCollection (makeService {
-          description = "Datadog Live Process Agent";
-          path = [ ];
-          script = ''
-            export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            ${datadogPkg}/bin/process-agent --cfgpath /etc/datadog-agent
-          '';
-          serviceConfig.SyslogIdentifier = "datadog-process-agent";
-          serviceConfig.RuntimeDirectory = "datadog-agent";
-        });
-
-        datadog-trace-agent = lib.mkIf cfg.enableTraceAgent (makeService {
-          description = "Datadog Trace Agent";
-          path = [ ];
-          script = ''
-            export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
-            ${datadogPkg}/bin/trace-agent --cfgpath /etc/datadog-agent
-          '';
-          serviceConfig.SyslogIdentifier = "datadog-trace-agent";
-          serviceConfig.RuntimeDirectory = "datadog-agent";
-        });
+      users.users.datadog = {
+        description = "Datadog Agent User";
+        uid = config.ids.uids.datadog;
+        group = "datadog";
+        extraGroups = lib.optionals config.virtualisation.docker.enable [ "docker" ];
       };
 
-    environment.etc = etcfiles;
-  };
+      users.groups.datadog.gid = config.ids.gids.datadog;
+
+      systemd.services =
+        let
+          makeService = attrs: recursiveUpdate
+            {
+              path = [ datadogPkg pkgs.python pkgs.sysstat pkgs.procps pkgs.iproute2 ];
+              wantedBy = [ "multi-user.target" ];
+              serviceConfig = {
+                User = "datadog";
+                Group = "datadog";
+                Restart = "always";
+                RestartSec = 2;
+              };
+              restartTriggers = [ datadogPkg ] ++ map (x: x.source) (attrValues etcfiles);
+            }
+            attrs;
+        in
+        {
+          datadog-agent = makeService {
+            description = "Datadog agent monitor";
+            preStart = ''
+              chown -R datadog: /etc/datadog-agent /var/run/datadog-agent
+              rm -f /etc/datadog-agent/auth_token
+            '';
+            script = ''
+              export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
+              exec ${datadogPkg}/bin/datadog-agent run --cfgpath /etc/datadog-agent
+            '';
+            serviceConfig.SyslogIdentifier = "datadog-agent";
+            serviceConfig.PermissionsStartOnly = true;
+            serviceConfig.RuntimeDirectory = "datadog-agent";
+          };
+
+          dd-jmxfetch = lib.mkIf (lib.hasAttr "jmx" cfg.checks) (makeService {
+            description = "Datadog JMX Fetcher";
+            path = [ datadogPkg pkgs.python pkgs.sysstat pkgs.procps pkgs.jdk ];
+            serviceConfig.ExecStart = "${datadogPkg}/bin/dd-jmxfetch";
+          });
+
+          datadog-process-agent = lib.mkIf cfg.enableLiveProcessCollection (makeService {
+            description = "Datadog Live Process Agent";
+            path = [ ];
+            script = ''
+              export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
+              ${datadogPkg}/bin/process-agent --cfgpath /etc/datadog-agent
+            '';
+            serviceConfig.SyslogIdentifier = "datadog-process-agent";
+            serviceConfig.RuntimeDirectory = "datadog-agent";
+          });
+
+          datadog-trace-agent = lib.mkIf cfg.enableTraceAgent (makeService {
+            description = "Datadog Trace Agent";
+            path = [ ];
+            script = ''
+              export DD_API_KEY=$(head -n 1 ${cfg.apiKeyFile})
+              ${datadogPkg}/bin/trace-agent --cfgpath /etc/datadog-agent
+            '';
+            serviceConfig.SyslogIdentifier = "datadog-trace-agent";
+            serviceConfig.RuntimeDirectory = "datadog-agent";
+          });
+        };
+
+      environment.etc = etcfiles;
+    };
 }
