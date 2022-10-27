@@ -34,7 +34,7 @@ let
       name = "datadog-agent/conf.d/${name}.d/conf.yaml";
       value.source = pkgs.writeText "${name}-check-conf.yaml" (builtins.toJSON (builtins.removeAttrs conf [ "enable" ]));
     })
-    entries;
+    (lib.filterAttrs (_: conf: conf.enable) entries);
 
   # Assemble all check configurations and the top-level agent
   # configuration.
