@@ -194,7 +194,7 @@ in
   };
   config =
     let
-      inherit (config.virtualisation) containerd docker podman;
+      inherit (config.virtualisation) containerd cri-o docker podman;
     in
     {
       nixpkgs.overlays = [ (import ./overlay.nix) ];
