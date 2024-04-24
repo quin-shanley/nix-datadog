@@ -17,10 +17,10 @@
 let
   owner = "DataDog";
   repo = "datadog-agent";
-  version = "7.38.1";
-  payloadVersion = "4.78.0"; # keep this in sync with github.com/DataDog/agent-payload dependency
+  version = "7.49.0";
+  payloadVersion = "5.0.97"; # keep this in sync with github.com/DataDog/agent-payload dependency
   sha256 = "sha256-bG8wsSQvZcG4/Th6mWVdVX9vpeYBZx8FxwdYXpIdXnU=";
-  vendorSha256 = "sha256-bGDf48wFa32hURZfGN5pCMmslC3PeLNayKcl5cfjq9M=";
+  vendorSha256 = "sha256-5cChRhi1aLoNPrMPgPwNuhwQOTkc/eOZOH1nZ69d2aQ=";
 
   ddtrace = callPackage ./ddtrace.nix { inherit python; };
 

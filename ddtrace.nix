@@ -4,7 +4,7 @@
 
 python.pkgs.buildPythonPackage rec {
   name = "ddtrace";
-  version = "0.53.2";
+  version = "2.8.2";
   format = "pyproject";
   src = fetchFromGitHub {
     owner = "DataDog";
